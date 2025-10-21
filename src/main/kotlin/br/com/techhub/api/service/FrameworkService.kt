@@ -24,10 +24,6 @@ class FrameworkService {
         val newFramework = Framework(
             id = frameworkIdCounter.incrementAndGet(),
             name = request.name,
-            category = request.category,
-            primaryLanguage = request.primaryLanguage,
-            description = request.description,
-            officialSite = request.officialSite,
             currentVersion = request.currentVersion
         )
         frameworks.add(newFramework)
@@ -75,10 +71,6 @@ class FrameworkService {
         val updatedFramework = Framework(
             id = existingFramework.id,
             name = request.name,
-            category = request.category,
-            primaryLanguage = request.primaryLanguage,
-            description = request.description,
-            officialSite = request.officialSite,
             currentVersion = request.currentVersion
         )
 

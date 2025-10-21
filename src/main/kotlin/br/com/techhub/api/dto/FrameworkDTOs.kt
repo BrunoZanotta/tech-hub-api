@@ -19,20 +19,6 @@ data class FrameworkRequestDTO(
     @Schema(example = "Playwright")
     val name: String,
 
-    @field:NotNull(message = "The category is required.")
-    val category: Category,
-
-    @field:NotNull(message = "The primary language is required.")
-    val primaryLanguage: Language,
-
-    @field:NotBlank(message = "The description cannot be blank.")
-    @Schema(example = "Modern framework for end-to-end web automation testing.")
-    val description: String,
-
-    @field:URL(message = "The official site must be a valid URL.")
-    @Schema(example = "https://playwright.dev/")
-    val officialSite: String,
-
     @field:NotBlank(message = "The current version cannot be blank.")
     @Schema(example = "1.45.0")
     val currentVersion: String
@@ -45,10 +31,6 @@ data class FrameworkRequestDTO(
 data class FrameworkResponseDTO(
     val id: Long,
     val name: String,
-    val category: Category,
-    val primaryLanguage: Language,
-    val description: String,
-    val officialSite: String,
     val currentVersion: String
 ) {
     /**
@@ -60,10 +42,6 @@ data class FrameworkResponseDTO(
     constructor(framework: Framework) : this(
         id = framework.id,
         name = framework.name,
-        category = framework.category,
-        primaryLanguage = framework.primaryLanguage,
-        description = framework.description,
-        officialSite = framework.officialSite,
         currentVersion = framework.currentVersion
     )
 }

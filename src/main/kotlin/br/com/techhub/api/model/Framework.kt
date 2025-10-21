@@ -23,20 +23,6 @@ data class Framework(
     @Schema(example = "Playwright")
     val name: String,
 
-    /** The classification of the framework (e.g., BACKEND_DEVELOPMENT, WEB_AUTOMATION). */
-    val category: Category,
-
-    /** The main programming language associated with the framework (e.g., KOTLIN, JAVASCRIPT). */
-    val primaryLanguage: Language,
-
-    /** A brief summary of the framework's purpose and features. */
-    @Schema(example = "Modern framework for end-to-end web automation testing.")
-    val description: String,
-
-    /** The official website URL for the framework. */
-    @Schema(example = "https://playwright.dev/")
-    val officialSite: String,
-
     /** The latest stable version of the framework. Mutable (`var`) to allow for updates. */
     @Schema(example = "1.45.0")
     var currentVersion: String
