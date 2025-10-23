@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder
+import br.com.techhub.api.exception.ErrorResponse
 
 @RestController
 @RequestMapping("/frameworks")
@@ -60,7 +61,14 @@ class FrameworkController(private val frameworkService: FrameworkService) {
                     schema = Schema(implementation = ErrorResponse::class)
                 )]
             ),
-            ApiResponse(responseCode = "409", description = "Resource already exists", content = [Content()])
+            ApiResponse(
+                responseCode = "409",
+                description = "Resource already exists",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
         ]
     )
     @PostMapping
@@ -135,9 +143,19 @@ class FrameworkController(private val frameworkService: FrameworkService) {
             ApiResponse(
                 responseCode = "400",
                 description = "Validation error",
-                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
             ),
-            ApiResponse(responseCode = "404", description = "Framework not found", content = [Content()])
+            ApiResponse(
+                responseCode = "404",
+                description = "Framework not found",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
         ]
     )
     @PutMapping("/{id}")

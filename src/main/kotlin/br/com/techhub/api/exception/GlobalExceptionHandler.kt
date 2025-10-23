@@ -1,6 +1,7 @@
 package br.com.techhub.api
 
-import com.fasterxml.jackson.annotation.JsonInclude
+import br.com.techhub.api.exception.ErrorResponse
+import br.com.techhub.api.exception.ResourceNotFoundException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
@@ -8,54 +9,84 @@ import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
-import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.RestControllerAdvice
 
-@ControllerAdvice
+@RestControllerAdvice
 class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidation(ex: MethodArgumentNotValidException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
-        val errors = ex.bindingResult.fieldErrors.map { it.toItem() }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse.badRequest("Validation failed", errors, request.servletPath))
+    fun handleMethodArgumentNotValid(
+        ex: MethodArgumentNotValidException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val firstError = ex.bindingResult.allErrors.firstOrNull()
+        val msg = when (firstError) {
+            is FieldError -> firstError.defaultMessage ?: "Validation error"
+            else -> firstError?.defaultMessage ?: "Validation error"
+        }
+        val body = ErrorResponse(
+            status = HttpStatus.BAD_REQUEST.value(),
+            error = HttpStatus.BAD_REQUEST.reasonPhrase,
+            message = msg,
+            path = request.servletPath
+        )
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
     @ExceptionHandler(ConstraintViolationException::class)
-    fun handleConstraintViolation(ex: ConstraintViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
-        val errors = ex.constraintViolations.map {
-            FieldErrorItem(
-                field = it.propertyPath.toString(),
-                message = it.message
-            )
-        }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse.badRequest("Validation failed", errors, request.servletPath))
+    fun handleConstraintViolation(
+        ex: ConstraintViolationException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val body = ErrorResponse(
+            status = HttpStatus.BAD_REQUEST.value(),
+            error = HttpStatus.BAD_REQUEST.reasonPhrase,
+            message = ex.message,
+            path = request.servletPath
+        )
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
-    fun handleUnreadable(ex: HttpMessageNotReadableException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse.badRequest("Malformed JSON", emptyList(), request.servletPath))
+    fun handleNotReadable(
+        ex: HttpMessageNotReadableException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val body = ErrorResponse(
+            status = HttpStatus.BAD_REQUEST.value(),
+            error = HttpStatus.BAD_REQUEST.reasonPhrase,
+            message = ex.mostSpecificCause?.message ?: ex.message,
+            path = request.servletPath
+        )
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
+    }
+
+    @ExceptionHandler(IllegalStateException::class)
+    fun handleConflict(
+        ex: IllegalStateException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val body = ErrorResponse(
+            status = HttpStatus.CONFLICT.value(),
+            error = HttpStatus.CONFLICT.reasonPhrase,
+            message = ex.message,
+            path = request.servletPath
+        )
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body)
+    }
+
+    @ExceptionHandler(ResourceNotFoundException::class)
+    fun handleNotFound(
+        ex: ResourceNotFoundException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val body = ErrorResponse(
+            status = HttpStatus.NOT_FOUND.value(),
+            error = HttpStatus.NOT_FOUND.reasonPhrase,
+            message = ex.message,
+            path = request.servletPath
+        )
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
     }
 }
-
-private fun FieldError.toItem() = FieldErrorItem(field = this.field, message = this.defaultMessage ?: "Invalid")
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
-data class ErrorResponse(
-    val code: String,
-    val message: String,
-    val errors: List<FieldErrorItem>? = null,
-    val path: String? = null
-) {
-    companion object {
-        fun badRequest(message: String, errors: List<FieldErrorItem>?, path: String?) =
-            ErrorResponse(code = "BAD_REQUEST", message = message, errors = errors?.ifEmpty { null }, path = path)
-    }
-}
-
-data class FieldErrorItem(
-    val field: String,
-    val message: String
-)
