@@ -1,92 +1,70 @@
-package br.com.techhub.api
+package br.com.techhub.api.exception
 
-import br.com.techhub.api.exception.ErrorResponse
-import br.com.techhub.api.exception.ResourceNotFoundException
-import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
-import org.springframework.web.bind.annotation.RestControllerAdvice
 
-@RestControllerAdvice
+@ControllerAdvice
 class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleMethodArgumentNotValid(
-        ex: MethodArgumentNotValidException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val firstError = ex.bindingResult.allErrors.firstOrNull()
-        val msg = when (firstError) {
-            is FieldError -> firstError.defaultMessage ?: "Validation error"
-            else -> firstError?.defaultMessage ?: "Validation error"
-        }
-        val body = ErrorResponse(
+    fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+        val message = ex.bindingResult
+            .allErrors
+            .joinToString("; ") {
+                if (it is FieldError) "${it.field}: ${it.defaultMessage}" else it.defaultMessage ?: "Validation error"
+            }
+
+        val error = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
-            error = HttpStatus.BAD_REQUEST.reasonPhrase,
-            message = msg,
-            path = request.servletPath
+            error = "Bad Request",
+            message = message
         )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error)
     }
 
     @ExceptionHandler(ConstraintViolationException::class)
-    fun handleConstraintViolation(
-        ex: ConstraintViolationException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val body = ErrorResponse(
+    fun handleConstraintViolation(ex: ConstraintViolationException): ResponseEntity<ErrorResponse> {
+        val message = ex.constraintViolations.joinToString("; ") { it.message }
+
+        val error = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
-            error = HttpStatus.BAD_REQUEST.reasonPhrase,
-            message = ex.message,
-            path = request.servletPath
+            error = "Bad Request",
+            message = message
         )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error)
     }
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
-    fun handleNotReadable(
-        ex: HttpMessageNotReadableException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val body = ErrorResponse(
-            status = HttpStatus.BAD_REQUEST.value(),
-            error = HttpStatus.BAD_REQUEST.reasonPhrase,
-            message = ex.mostSpecificCause?.message ?: ex.message,
-            path = request.servletPath
-        )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
-    }
+    fun handleUnreadable(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
+        val raw = ex.mostSpecificCause?.message ?: ex.message ?: ""
 
-    @ExceptionHandler(IllegalStateException::class)
-    fun handleConflict(
-        ex: IllegalStateException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val body = ErrorResponse(
-            status = HttpStatus.CONFLICT.value(),
-            error = HttpStatus.CONFLICT.reasonPhrase,
-            message = ex.message,
-            path = request.servletPath
+        val message = if (raw.contains("name", ignoreCase = true)) {
+            "name null"
+        } else {
+            "Invalid request body"
+        }
+
+        val error = ErrorResponse(
+            status = HttpStatus.BAD_REQUEST.value(),
+            error = "Bad Request",
+            message = message
         )
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error)
     }
 
     @ExceptionHandler(ResourceNotFoundException::class)
-    fun handleNotFound(
-        ex: ResourceNotFoundException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val body = ErrorResponse(
+    fun handleNotFound(ex: ResourceNotFoundException): ResponseEntity<ErrorResponse> {
+        val error = ErrorResponse(
             status = HttpStatus.NOT_FOUND.value(),
-            error = HttpStatus.NOT_FOUND.reasonPhrase,
-            message = ex.message,
-            path = request.servletPath
+            error = "Not Found",
+            message = ex.message ?: "Resource not found"
         )
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error)
     }
 }
