@@ -6,88 +6,61 @@ import br.com.techhub.api.model.Framework
 import br.com.techhub.api.model.frameworkIdCounter
 import org.springframework.stereotype.Service
 
-/**
- * Service layer responsible for the business logic related to frameworks.
- * The controller delegates tasks to this class.
- */
 @Service
 class FrameworkService {
 
     private val frameworks = mutableListOf<Framework>()
 
-    /**
-     * Creates a new framework from a DTO and saves it to the list.
-     * @param request The DTO containing the data for the new framework.
-     * @return The created Framework object.
-     */
     fun createFramework(request: FrameworkRequestDTO): Framework {
+        val name = request.name.trim()
+        val version = request.currentVersion.trim()
+
+        if (frameworks.any { it.name.equals(name, ignoreCase = true) }) {
+            throw IllegalStateException("Framework with name '$name' already exists.")
+        }
+
         val newFramework = Framework(
             id = frameworkIdCounter.incrementAndGet(),
-            name = request.name,
-            currentVersion = request.currentVersion
+            name = name,
+            currentVersion = version
         )
         frameworks.add(newFramework)
         return newFramework
     }
 
-    /**
-     * Returns the complete list of all registered frameworks.
-     * @return A list of Framework objects.
-     */
-    fun getAllFrameworks(): List<Framework> {
-        return frameworks
-    }
+    fun getAllFrameworks(): List<Framework> = frameworks.toList()
 
-    /**
-     * Filters frameworks whose name contains the search text (case-insensitive).
-     * @param name The text to search for within framework names.
-     * @return A list of frameworks that match the search.
-     */
     fun findByName(name: String): List<Framework> {
-        return frameworks.filter { it.name.contains(name, ignoreCase = true) }
+        val q = name.trim()
+        return frameworks.filter { it.name.contains(q, ignoreCase = true) }
     }
 
-    /**
-     * Finds a specific framework by its ID.
-     * @param id The ID of the framework to find.
-     * @return The corresponding Framework object.
-     * @throws ResourceNotFoundException if no framework with the given ID is found.
-     */
-    fun findById(id: Long): Framework {
-        return frameworks.find { it.id == id }
+    fun findById(id: Long): Framework =
+        frameworks.find { it.id == id }
             ?: throw ResourceNotFoundException("Framework with ID $id not found.")
-    }
 
-    /**
-     * Updates an existing framework based on its ID.
-     * @param id The ID of the framework to update.
-     * @param request The DTO with the new data for the framework.
-     * @return The updated Framework object.
-     * @throws ResourceNotFoundException if the framework to be updated is not found.
-     */
     fun updateFramework(id: Long, request: FrameworkRequestDTO): Framework {
-        val existingFramework = findById(id)
+        val existing = findById(id)
 
-        val updatedFramework = Framework(
-            id = existingFramework.id,
-            name = request.name,
-            currentVersion = request.currentVersion
+        val name = request.name.trim()
+        val version = request.currentVersion.trim()
+
+        if (frameworks.any { it.id != id && it.name.equals(name, ignoreCase = true) }) {
+            throw IllegalStateException("Framework with name '$name' already exists.")
+        }
+
+        val updated = existing.copy(
+            name = name,
+            currentVersion = version
         )
 
-        val index = frameworks.indexOf(existingFramework)
-        frameworks[index] = updatedFramework
-
-        return updatedFramework
+        val idx = frameworks.indexOf(existing)
+        frameworks[idx] = updated
+        return updated
     }
 
-    /**
-     * Deletes a framework by its ID.
-     * @param id The ID of the framework to be deleted.
-     * @throws ResourceNotFoundException if the framework is not found.
-     */
     fun deleteFramework(id: Long) {
-        val frameworkToDelete = findById(id)
-
-        frameworks.remove(frameworkToDelete)
+        val toDelete = findById(id)
+        frameworks.remove(toDelete)
     }
 }

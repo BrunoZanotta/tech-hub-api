@@ -20,7 +20,8 @@ data class FrameworkRequestDTO(
     val name: String,
 
     @field:NotBlank(message = "The current version cannot be blank.")
-    @Schema(example = "1.45.0")
+    @field:Size(min = 1, max = 50, message = "The current version must be up to 50 characters.")
+    @Schema(example = "1.48.0")
     val currentVersion: String
 )
 
@@ -39,9 +40,9 @@ data class FrameworkResponseDTO(
      *
      * @param framework The internal Framework model object.
      */
-    constructor(framework: Framework) : this(
-        id = framework.id,
-        name = framework.name,
-        currentVersion = framework.currentVersion
+    constructor(model: Framework) : this(
+        id = model.id,
+        name = model.name,
+        currentVersion = model.currentVersion
     )
 }

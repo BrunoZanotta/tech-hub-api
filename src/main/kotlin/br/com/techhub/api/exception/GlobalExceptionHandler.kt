@@ -1,79 +1,61 @@
-package br.com.techhub.api.exception
+package br.com.techhub.api
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
-import org.springframework.web.bind.annotation.RestControllerAdvice
-import java.time.LocalDateTime
 
-/**
- * Global exception handler for the entire application.
- * Intercepts specific exceptions and formats them into a consistent JSON error response.
- */
-@RestControllerAdvice
+@ControllerAdvice
 class GlobalExceptionHandler {
 
-    /**
-     * Handles validation errors for request bodies (@RequestBody).
-     * Triggered when an object annotated with @Valid fails validation.
-     * @param ex The exception containing field-specific error details.
-     * @return A ResponseEntity with a 400 Bad Request status and a detailed error body.
-     */
     @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidationExceptions(ex: MethodArgumentNotValidException): ResponseEntity<Map<String, Any>> {
-        val errors = ex.bindingResult.fieldErrors.associate { error ->
-            error.field to error.defaultMessage
-        }
-
-        val body: Map<String, Any> = mapOf(
-            "timestamp" to LocalDateTime.now(),
-            "status" to HttpStatus.BAD_REQUEST.value(),
-            "error" to "Validation Error",
-            "message" to "One or more fields are invalid.",
-            "errors" to errors
-        )
-        return ResponseEntity.badRequest().body(body)
+    fun handleValidation(ex: MethodArgumentNotValidException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        val errors = ex.bindingResult.fieldErrors.map { it.toItem() }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse.badRequest("Validation failed", errors, request.servletPath))
     }
 
-    /**
-     * Handles validation errors for request parameters (@RequestParam, @PathVariable).
-     * Triggered when a method parameter in a @Validated controller fails validation.
-     * @param ex The exception containing constraint violation details.
-     * @return A ResponseEntity with a 400 Bad Request status and a detailed error body.
-     */
     @ExceptionHandler(ConstraintViolationException::class)
-    fun handleConstraintViolationExceptions(ex: ConstraintViolationException): ResponseEntity<Map<String, Any>> {
-        val errors = ex.constraintViolations.associate { violation ->
-            violation.propertyPath.toString().substringAfterLast('.') to violation.message
+    fun handleConstraintViolation(ex: ConstraintViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        val errors = ex.constraintViolations.map {
+            FieldErrorItem(
+                field = it.propertyPath.toString(),
+                message = it.message
+            )
         }
-
-        val body: Map<String, Any> = mapOf(
-            "timestamp" to LocalDateTime.now(),
-            "status" to HttpStatus.BAD_REQUEST.value(),
-            "error" to "Validation Error",
-            "message" to "One or more parameters are invalid.",
-            "errors" to errors
-        )
-        return ResponseEntity.badRequest().body(body)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse.badRequest("Validation failed", errors, request.servletPath))
     }
 
-
-    /**
-     * Handles the custom ResourceNotFoundException.
-     * Triggered when a service layer cannot find a requested resource (e.g., by ID).
-     * @param ex The custom exception containing a specific error message.
-     * @return A ResponseEntity with a 404 Not Found status and a clear error message.
-     */
-    @ExceptionHandler(ResourceNotFoundException::class)
-    fun handleResourceNotFoundException(ex: ResourceNotFoundException): ResponseEntity<Map<String, Any>> {
-        val body: Map<String, Any> = mapOf(
-            "timestamp" to LocalDateTime.now(),
-            "status" to HttpStatus.NOT_FOUND.value(),
-            "error" to "Not Found",
-            "message" to (ex.message ?: "Resource not found.")
-        )
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleUnreadable(ex: HttpMessageNotReadableException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse.badRequest("Malformed JSON", emptyList(), request.servletPath))
     }
 }
+
+private fun FieldError.toItem() = FieldErrorItem(field = this.field, message = this.defaultMessage ?: "Invalid")
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ErrorResponse(
+    val code: String,
+    val message: String,
+    val errors: List<FieldErrorItem>? = null,
+    val path: String? = null
+) {
+    companion object {
+        fun badRequest(message: String, errors: List<FieldErrorItem>?, path: String?) =
+            ErrorResponse(code = "BAD_REQUEST", message = message, errors = errors?.ifEmpty { null }, path = path)
+    }
+}
+
+data class FieldErrorItem(
+    val field: String,
+    val message: String
+)

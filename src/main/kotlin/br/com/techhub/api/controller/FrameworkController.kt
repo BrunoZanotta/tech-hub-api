@@ -2,7 +2,6 @@ package br.com.techhub.api.controller
 
 import br.com.techhub.api.dto.FrameworkRequestDTO
 import br.com.techhub.api.dto.FrameworkResponseDTO
-import br.com.techhub.api.exception.ResourceNotFoundException
 import br.com.techhub.api.service.FrameworkService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -25,9 +24,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 @RequestMapping("/frameworks")
 @Tag(name = "Frameworks", description = "Endpoints for managing technology frameworks")
 @Validated
-class FrameworkController(
-    private val frameworkService: FrameworkService
-) {
+class FrameworkController(private val frameworkService: FrameworkService) {
 
     @Operation(
         summary = "Add a new framework",
@@ -36,8 +33,7 @@ class FrameworkController(
             required = true,
             content = [Content(
                 mediaType = "application/json",
-                schema = Schema(implementation = FrameworkRequestDTO::class),
-                examples = []
+                schema = Schema(implementation = FrameworkRequestDTO::class)
             )]
         )
     )
@@ -56,7 +52,14 @@ class FrameworkController(
                     schema = Schema(type = "string")
                 )]
             ),
-            ApiResponse(responseCode = "400", description = "Validation error"),
+            ApiResponse(
+                responseCode = "400",
+                description = "Validation error",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            ),
             ApiResponse(responseCode = "409", description = "Resource already exists", content = [Content()])
         ]
     )
@@ -67,13 +70,10 @@ class FrameworkController(
             .path("/{id}")
             .buildAndExpand(created.id)
             .toUri()
-        return ResponseEntity.created(location).body(FrameworkResponseDTO(created)) // 201 + Location
+        return ResponseEntity.created(location).body(FrameworkResponseDTO(created))
     }
 
-    @Operation(
-        summary = "List all frameworks",
-        description = "Returns a list of all registered frameworks."
-    )
+    @Operation(summary = "List all frameworks")
     @ApiResponses(
         value = [
             ApiResponse(
@@ -90,10 +90,7 @@ class FrameworkController(
     fun getAllFrameworks(): List<FrameworkResponseDTO> =
         frameworkService.getAllFrameworks().map { FrameworkResponseDTO(it) }
 
-    @Operation(
-        summary = "Find frameworks by name",
-        description = "Returns a list of frameworks whose name contains the searched text."
-    )
+    @Operation(summary = "Find frameworks by name")
     @ApiResponses(
         value = [
             ApiResponse(
@@ -104,7 +101,14 @@ class FrameworkController(
                     schema = Schema(implementation = FrameworkResponseDTO::class)
                 )]
             ),
-            ApiResponse(responseCode = "400", description = "Validation error", content = [Content()])
+            ApiResponse(
+                responseCode = "400",
+                description = "Validation error",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
         ]
     )
     @GetMapping(params = ["name"])
@@ -117,10 +121,7 @@ class FrameworkController(
     ): List<FrameworkResponseDTO> =
         frameworkService.findByName(name).map { FrameworkResponseDTO(it) }
 
-    @Operation(
-        summary = "Update an existing framework",
-        description = "Replaces all data for a framework specified by its ID."
-    )
+    @Operation(summary = "Update an existing framework")
     @ApiResponses(
         value = [
             ApiResponse(
@@ -131,7 +132,11 @@ class FrameworkController(
                     schema = Schema(implementation = FrameworkResponseDTO::class)
                 )]
             ),
-            ApiResponse(responseCode = "400", description = "Validation error"),
+            ApiResponse(
+                responseCode = "400",
+                description = "Validation error",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            ),
             ApiResponse(responseCode = "404", description = "Framework not found", content = [Content()])
         ]
     )
@@ -141,13 +146,10 @@ class FrameworkController(
         @Valid @RequestBody request: FrameworkRequestDTO
     ): ResponseEntity<FrameworkResponseDTO> {
         val updated = frameworkService.updateFramework(id, request)
-        return ResponseEntity.ok(FrameworkResponseDTO(updated)) // 200
+        return ResponseEntity.ok(FrameworkResponseDTO(updated))
     }
 
-    @Operation(
-        summary = "Delete an existing framework",
-        description = "Removes a framework from the repository by its ID."
-    )
+    @Operation(summary = "Delete an existing framework")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "204", description = "No Content"),
@@ -157,6 +159,6 @@ class FrameworkController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteFramework(@PathVariable id: Long) {
-        frameworkService.deleteFramework(id) // 204
+        frameworkService.deleteFramework(id)
     }
 }
