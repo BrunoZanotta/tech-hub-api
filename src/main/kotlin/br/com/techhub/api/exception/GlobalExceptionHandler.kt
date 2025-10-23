@@ -67,4 +67,14 @@ class GlobalExceptionHandler {
         )
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error)
     }
+
+    @ExceptionHandler(ResourceConflictException::class)
+    fun handleConflict(ex: ResourceConflictException): ResponseEntity<ErrorResponse> {
+        val error = ErrorResponse(
+            status = HttpStatus.CONFLICT.value(),
+            error = "Conflict",
+            message = ex.message ?: "Conflict"
+        )
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error)
+    }
 }

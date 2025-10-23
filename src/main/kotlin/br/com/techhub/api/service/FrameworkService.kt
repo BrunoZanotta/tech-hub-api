@@ -1,6 +1,7 @@
 package br.com.techhub.api.service
 
 import br.com.techhub.api.dto.FrameworkRequestDTO
+import br.com.techhub.api.exception.ResourceConflictException
 import br.com.techhub.api.exception.ResourceNotFoundException
 import br.com.techhub.api.model.Framework
 import br.com.techhub.api.model.frameworkIdCounter
@@ -12,28 +13,29 @@ class FrameworkService {
     private val frameworks = mutableListOf<Framework>()
 
     fun createFramework(request: FrameworkRequestDTO): Framework {
-        val name = request.name.trim()
-        val version = request.currentVersion.trim()
-
-        if (frameworks.any { it.name.equals(name, ignoreCase = true) }) {
-            throw IllegalStateException("Framework with name '$name' already exists.")
+        val existsSameNameAndVersion = frameworks.any {
+            it.name.equals(request.name, ignoreCase = true) &&
+                    it.currentVersion == request.currentVersion
+        }
+        if (existsSameNameAndVersion) {
+            throw ResourceConflictException(
+                "Framework with name '${request.name}' and version '${request.currentVersion}' already exists."
+            )
         }
 
         val newFramework = Framework(
             id = frameworkIdCounter.incrementAndGet(),
-            name = name,
-            currentVersion = version
+            name = request.name,
+            currentVersion = request.currentVersion
         )
         frameworks.add(newFramework)
         return newFramework
     }
 
-    fun getAllFrameworks(): List<Framework> = frameworks.toList()
+    fun getAllFrameworks(): List<Framework> = frameworks
 
-    fun findByName(name: String): List<Framework> {
-        val q = name.trim()
-        return frameworks.filter { it.name.contains(q, ignoreCase = true) }
-    }
+    fun findByName(name: String): List<Framework> =
+        frameworks.filter { it.name.contains(name, ignoreCase = true) }
 
     fun findById(id: Long): Framework =
         frameworks.find { it.id == id }
@@ -42,20 +44,23 @@ class FrameworkService {
     fun updateFramework(id: Long, request: FrameworkRequestDTO): Framework {
         val existing = findById(id)
 
-        val name = request.name.trim()
-        val version = request.currentVersion.trim()
-
-        if (frameworks.any { it.id != id && it.name.equals(name, ignoreCase = true) }) {
-            throw IllegalStateException("Framework with name '$name' already exists.")
+        val duplicate = frameworks.any {
+            it.id != id &&
+                    it.name.equals(request.name, ignoreCase = true) &&
+                    it.currentVersion == request.currentVersion
+        }
+        if (duplicate) {
+            throw ResourceConflictException(
+                "Framework with name '${request.name}' and version '${request.currentVersion}' already exists."
+            )
         }
 
-        val updated = existing.copy(
-            name = name,
-            currentVersion = version
+        val updated = Framework(
+            id = existing.id,
+            name = request.name,
+            currentVersion = request.currentVersion
         )
-
-        val idx = frameworks.indexOf(existing)
-        frameworks[idx] = updated
+        frameworks[frameworks.indexOf(existing)] = updated
         return updated
     }
 
