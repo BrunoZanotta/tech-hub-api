@@ -2,6 +2,7 @@ package br.com.techhub.api.controller
 
 import br.com.techhub.api.dto.FrameworkRequestDTO
 import br.com.techhub.api.dto.FrameworkResponseDTO
+import br.com.techhub.api.exception.ErrorResponse
 import br.com.techhub.api.service.FrameworkService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -19,16 +20,17 @@ import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder
-import br.com.techhub.api.exception.ErrorResponse
 
 @RestController
-@RequestMapping("/frameworks")
+@RequestMapping("/frameworks", produces = ["application/json"])
 @Tag(name = "Frameworks", description = "Endpoints for managing technology frameworks")
 @Validated
-class FrameworkController(private val frameworkService: FrameworkService) {
+class FrameworkController(
+    private val frameworkService: FrameworkService
+) {
 
     @Operation(
-        summary = "Add a new framework",
+        summary = "Create framework",
         description = "Registers a new framework in the repository.",
         requestBody = io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
@@ -71,8 +73,8 @@ class FrameworkController(private val frameworkService: FrameworkService) {
             )
         ]
     )
-    @PostMapping
-    fun addFramework(@Valid @RequestBody request: FrameworkRequestDTO): ResponseEntity<FrameworkResponseDTO> {
+    @PostMapping(consumes = ["application/json"])
+    fun createFramework(@Valid @RequestBody request: FrameworkRequestDTO): ResponseEntity<FrameworkResponseDTO> {
         val created = frameworkService.createFramework(request)
         val location = ServletUriComponentsBuilder.fromCurrentRequest()
             .path("/{id}")
@@ -81,7 +83,11 @@ class FrameworkController(private val frameworkService: FrameworkService) {
         return ResponseEntity.created(location).body(FrameworkResponseDTO(created))
     }
 
-    @Operation(summary = "List all frameworks")
+    // ========= READ (LIST) =========
+    @Operation(
+        summary = "List frameworks",
+        description = "Returns all frameworks."
+    )
     @ApiResponses(
         value = [
             ApiResponse(
@@ -95,10 +101,13 @@ class FrameworkController(private val frameworkService: FrameworkService) {
         ]
     )
     @GetMapping
-    fun getAllFrameworks(): List<FrameworkResponseDTO> =
+    fun listFrameworks(): List<FrameworkResponseDTO> =
         frameworkService.getAllFrameworks().map { FrameworkResponseDTO(it) }
 
-    @Operation(summary = "Find frameworks by name")
+    @Operation(
+        summary = "Search frameworks by name",
+        description = "Case-insensitive, partial match. The parameter must not be blank and must not be only digits."
+    )
     @ApiResponses(
         value = [
             ApiResponse(
@@ -120,16 +129,32 @@ class FrameworkController(private val frameworkService: FrameworkService) {
         ]
     )
     @GetMapping(params = ["name"])
-    fun findFrameworksByName(
-        @Parameter(description = "Case-insensitive, partial match")
-        @RequestParam
+    fun searchFrameworksByName(
+        @Parameter(
+            description = "Case-insensitive, partial match",
+            required = true,
+            schema = Schema(
+                type = "string",
+                minLength = 1,
+                // Pelo menos um caractere não numérico: rejeita "123"
+                pattern = ".*\\D.*",
+                example = "spring"
+            )
+        )
+        @RequestParam(name = "name", required = true)
         @NotBlank(message = "The 'name' parameter cannot be blank.")
-        @Pattern(regexp = ".*\\D.*", message = "The 'name' parameter cannot consist only of numbers.")
+        @Pattern(
+            regexp = ".*\\D.*",
+            message = "The 'name' parameter cannot consist only of numbers."
+        )
         name: String
     ): List<FrameworkResponseDTO> =
         frameworkService.findByName(name).map { FrameworkResponseDTO(it) }
 
-    @Operation(summary = "Update an existing framework")
+    @Operation(
+        summary = "Update framework",
+        description = "Updates an existing framework by id."
+    )
     @ApiResponses(
         value = [
             ApiResponse(
@@ -158,8 +183,8 @@ class FrameworkController(private val frameworkService: FrameworkService) {
             )
         ]
     )
-    @PutMapping("/{id}")
-    fun updateFramework(
+    @PutMapping("/{id}", consumes = ["application/json"])
+    fun updateFrameworkById(
         @PathVariable id: Long,
         @Valid @RequestBody request: FrameworkRequestDTO
     ): ResponseEntity<FrameworkResponseDTO> {
@@ -167,16 +192,24 @@ class FrameworkController(private val frameworkService: FrameworkService) {
         return ResponseEntity.ok(FrameworkResponseDTO(updated))
     }
 
-    @Operation(summary = "Delete an existing framework")
+    @Operation(
+        summary = "Delete framework",
+        description = "Deletes an existing framework by id."
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "204", description = "No Content"),
-            ApiResponse(responseCode = "404", description = "Framework not found", content = [Content()])
+            ApiResponse(
+                responseCode = "404",
+                description = "Framework not found",
+                content = [Content(mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class))]
+            )
         ]
     )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deleteFramework(@PathVariable id: Long) {
+    fun deleteFrameworkById(@PathVariable id: Long) {
         frameworkService.deleteFramework(id)
     }
 }

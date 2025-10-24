@@ -1,45 +1,47 @@
 package br.com.techhub.api.dto
 
-import br.com.techhub.api.model.Category
 import br.com.techhub.api.model.Framework
-import br.com.techhub.api.model.Language
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
-import org.hibernate.validator.constraints.URL
 
-/**
- * Data Transfer Object for creating or updating a Framework.
- * This class defines the validation rules for incoming data.
- */
 data class FrameworkRequestDTO(
+
     @field:NotBlank(message = "The name cannot be blank.")
     @field:Size(min = 2, max = 100, message = "The name must be between 2 and 100 characters.")
-    @Schema(example = "Playwright")
+    @field:Pattern(
+        regexp = ".*\\D.*",
+        message = "The name cannot consist only of numbers."
+    )
+    @Schema(
+        description = "Human-friendly framework name. Must contain at least one non-digit character.",
+        minLength = 2,
+        maxLength = 100,
+        pattern = ".*\\D.*",
+        example = "Playwright"
+    )
     val name: String,
 
     @field:NotBlank(message = "The current version cannot be blank.")
     @field:Size(min = 1, max = 50, message = "The current version must be up to 50 characters.")
-    @Schema(example = "1.48.0")
+    @Schema(
+        description = "Current version label (semantic or vendor style).",
+        example = "1.48.0"
+    )
     val currentVersion: String
 )
 
-/**
- * Data Transfer Object for representing a Framework in API responses.
- * This class structures the data that is sent back to the client.
- */
 data class FrameworkResponseDTO(
+    @Schema(description = "Framework unique identifier", example = "42")
     val id: Long,
+
+    @Schema(description = "Framework name", example = "Playwright")
     val name: String,
+
+    @Schema(description = "Current version label", example = "1.48.0")
     val currentVersion: String
 ) {
-    /**
-     * Secondary constructor to conveniently map a Framework model entity
-     * to its corresponding response DTO.
-     *
-     * @param framework The internal Framework model object.
-     */
     constructor(model: Framework) : this(
         id = model.id,
         name = model.name,
